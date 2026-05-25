@@ -12,12 +12,16 @@ func IsGoProject(dir string) bool {
 	return err == nil
 }
 
-func DefaultRunCommand(dir string) (string, error) {
+func DefaultRunCommand(dir string, target string) (string, error) {
 	cmdDir, err := defaultCommandDir(dir)
 	if err != nil {
 		return "", err
 	}
-	return "go run ./" + filepath.ToSlash(cmdDir) + " serve", nil
+	command := "go run ./" + filepath.ToSlash(cmdDir) + " serve"
+	if target != "" {
+		command += " " + target
+	}
+	return command, nil
 }
 
 func defaultCommandDir(dir string) (string, error) {

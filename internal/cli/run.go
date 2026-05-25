@@ -17,7 +17,11 @@ func newRunCommand() *cobra.Command {
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				opt.Command = strings.Join(args, " ")
+				if looksLikeServeTarget(args) {
+					opt.Target = args[0]
+				} else {
+					opt.Command = strings.Join(args, " ")
+				}
 			}
 			return runner.Run(".", opt)
 		},
@@ -25,5 +29,14 @@ func newRunCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&opt.Command, "cmd", "", "command to run")
 	cmd.Flags().StringVar(&opt.Watch, "watch", "", "comma-separated watch paths")
+	cmd.Flags().BoolVar(&opt.NoWatch, "no-watch", false, "run without watching files")
 	return cmd
+}
+
+func looksLikeServeTarget(args []string) bool {
+	if len(args) != 1 {
+		return false
+	}
+	arg := args[0]
+	return !strings.ContainsAny(arg, " /\\.")
 }

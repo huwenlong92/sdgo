@@ -2,6 +2,7 @@ package generator
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -67,6 +68,129 @@ func TestGenerateProjectRewritesModuleAndImports(t *testing.T) {
 	}
 }
 
+func TestGenerateProjectFromAlternateTemplateIdentity(t *testing.T) {
+	dir := t.TempDir()
+	source := writeNamedProjectSource(t, dir, "sdadmin")
+
+	err := GenerateProject(dir, ProjectOptions{Name: "demo", ModulePath: "mycorp/demo", SourceDir: source})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "demo", "cmd", "demo", "main.go")); err != nil {
+		t.Fatalf("expected command directory to be renamed: %v", err)
+	}
+
+	mainGo, err := os.ReadFile(filepath.Join(dir, "demo", "cmd", "demo", "main.go"))
+	if err != nil {
+		t.Fatalf("ReadFile main.go returned error: %v", err)
+	}
+	if got := string(mainGo); !contains(got, `"mycorp/demo/command"`) {
+		t.Fatalf("expected alternate template import path to be rewritten, got:\n%s", got)
+	}
+}
+
+func TestGenerateProjectFromNodeTemplate(t *testing.T) {
+	dir := t.TempDir()
+	source := writeNodeProjectSource(t, dir)
+
+	err := GenerateProject(dir, ProjectOptions{Name: "admin-web", SourceDir: source})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	packageJSON, err := os.ReadFile(filepath.Join(dir, "admin-web", "package.json"))
+	if err != nil {
+		t.Fatalf("ReadFile package.json returned error: %v", err)
+	}
+	if got := string(packageJSON); !contains(got, `"name": "admin-web"`) {
+		t.Fatalf("expected package name to be rewritten, got:\n%s", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "src", "main.ts")); err != nil {
+		t.Fatalf("expected frontend source file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "node_modules")); !os.IsNotExist(err) {
+		t.Fatalf("node_modules should not be copied, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "dist")); !os.IsNotExist(err) {
+		t.Fatalf("dist should not be copied, got %v", err)
+	}
+}
+
+func TestGenerateProjectRejectsModuleForNodeTemplate(t *testing.T) {
+	dir := t.TempDir()
+	source := writeNodeProjectSource(t, dir)
+
+	err := GenerateProject(dir, ProjectOptions{Name: "admin-web", ModulePath: "mycorp/admin-web", SourceDir: source})
+	if err == nil {
+		t.Fatalf("expected --module to be rejected for node template")
+	}
+	if !contains(err.Error(), "--module is only supported for Go templates") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGenerateProjectFromGitSource(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	source := writeProjectSource(t, filepath.Join(dir, "source-base"))
+	runGit(t, source, "init")
+	runGit(t, source, "config", "user.email", "test@example.com")
+	runGit(t, source, "config", "user.name", "Test User")
+	runGit(t, source, "add", ".")
+	runGit(t, source, "commit", "-m", "template")
+
+	err := GenerateProject(dir, ProjectOptions{
+		Name:       "demo",
+		ModulePath: "github.com/acme/demo",
+		SourceDir:  "file://" + filepath.ToSlash(source),
+	})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "demo", "cmd", "demo", "main.go")); err != nil {
+		t.Fatalf("expected generated file from git source: %v", err)
+	}
+}
+
+func TestGenerateProjectFromGitSourceBranch(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	source := writeProjectSource(t, filepath.Join(dir, "source-base"))
+	runGit(t, source, "init")
+	runGit(t, source, "config", "user.email", "test@example.com")
+	runGit(t, source, "config", "user.name", "Test User")
+	runGit(t, source, "add", ".")
+	runGit(t, source, "commit", "-m", "template")
+	runGit(t, source, "checkout", "-b", "feature-template")
+	if err := os.WriteFile(filepath.Join(source, "configs", "branch.yaml"), []byte("from: branch\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile branch marker returned error: %v", err)
+	}
+	runGit(t, source, "add", ".")
+	runGit(t, source, "commit", "-m", "branch template")
+
+	err := GenerateProject(dir, ProjectOptions{
+		Name:       "demo",
+		ModulePath: "github.com/acme/demo",
+		SourceDir:  "file://" + filepath.ToSlash(source),
+		Branch:     "feature-template",
+	})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "demo", "configs", "branch.yaml")); err != nil {
+		t.Fatalf("expected generated file from git branch: %v", err)
+	}
+}
+
 func TestGenerateModuleCreatesModule(t *testing.T) {
 	dir := t.TempDir()
 	writeGoMod(t, dir)
@@ -118,18 +242,23 @@ func writeGoMod(t *testing.T, dir string) {
 
 func writeProjectSource(t *testing.T, base string) string {
 	t.Helper()
+	return writeNamedProjectSource(t, base, "sdkitgo")
+}
+
+func writeNamedProjectSource(t *testing.T, base string, sourceName string) string {
+	t.Helper()
 	dir := filepath.Join(base, "template")
 	files := map[string]string{
-		"go.mod":              "module sdkitgo\n\ngo 1.25.0\n",
-		"cmd/sdkitgo/main.go": "package main\n\nimport \"sdkitgo/command\"\n\nfunc main() { command.RegisterAll(nil) }\n",
-		"bootstrap/boot.go":   "package bootstrap\n",
-		"command/command.go":  "package command\n",
-		"configs/config.yaml": "app:\n  name: sdkitgo\n",
-		"deploy/Dockerfile":   "COPY sdkitgo/ ./\nRUN go build -o /out/sdkitgo ./cmd/sdkitgo\n",
-		"tests/skip_test.go":  "package tests\n",
-		".git/config":         "[core]\n",
-		".air.toml":           "root = \".\"\n",
-		"tmp/generated.txt":   "skip\n",
+		"go.mod":                         "module " + sourceName + "\n\ngo 1.25.0\n",
+		"cmd/" + sourceName + "/main.go": "package main\n\nimport \"" + sourceName + "/command\"\n\nfunc main() { command.RegisterAll(nil) }\n",
+		"bootstrap/boot.go":              "package bootstrap\n",
+		"command/command.go":             "package command\n",
+		"configs/config.yaml":            "app:\n  name: " + sourceName + "\n",
+		"deploy/Dockerfile":              "COPY " + sourceName + "/ ./\nRUN go build -o /out/" + sourceName + " ./cmd/" + sourceName + "\n",
+		"tests/skip_test.go":             "package tests\n",
+		".git/config":                    "[core]\n",
+		".air.toml":                      "root = \".\"\n",
+		"tmp/generated.txt":              "skip\n",
 	}
 	for path, content := range files {
 		full := filepath.Join(dir, path)
@@ -146,6 +275,43 @@ func writeProjectSource(t *testing.T, base string) string {
 	return dir
 }
 
+func writeNodeProjectSource(t *testing.T, base string) string {
+	t.Helper()
+	dir := filepath.Join(base, "template")
+	files := map[string]string{
+		"package.json":            "{\n  \"name\": \"admin-template\",\n  \"version\": \"0.1.0\",\n  \"scripts\": {\"dev\": \"vite\"}\n}\n",
+		"package-lock.json":       "{\n  \"name\": \"admin-template\",\n  \"packages\": {\"\": {\"name\": \"admin-template\"}}\n}\n",
+		"index.html":              "<title>admin-template</title>\n",
+		"src/main.ts":             "console.log('hello')\n",
+		"node_modules/vite/index": "skip\n",
+		"dist/assets/index.js":    "skip\n",
+		".vite/deps/package.json": "skip\n",
+		"coverage/lcov.info":      "skip\n",
+		".git/config":             "[core]\n",
+		"tmp/generated.txt":       "skip\n",
+	}
+	for path, content := range files {
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatalf("MkdirAll %s returned error: %v", path, err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile %s returned error: %v", path, err)
+		}
+	}
+	return dir
+}
+
 func contains(s string, sub string) bool {
 	return strings.Contains(s, sub)
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v returned error: %v\n%s", args, err, out)
+	}
 }

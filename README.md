@@ -26,7 +26,7 @@ go install github.com/huwenlong/sdgo/cmd/sdgo@latest
 Create a project from the local `sdkitgo` template:
 
 ```bash
-sdgo new demo --module github.com/acme/demo
+sdgo new demo
 cd demo
 sdgo dev
 ```
@@ -39,24 +39,41 @@ sdgo dev
 - runtime names in Go, YAML, Makefile, and Dockerfile files.
 - local cache/runtime folders are skipped.
 
+If no local `sdkitgo` template is found, `sdgo new` falls back to `git@gitee.com:sd0/sdkitgo.git`.
+
 ## Common Commands
 
 ```bash
 sdgo new demo
-sdgo new demo --module github.com/acme/demo
-sdgo new demo --source /Users/huwenlong/data/lab/sdkitgo
+sdgo new demo --source ../sdkitgo
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git --branch dev
+sdgo new admin-demo --template sdkitgo-admin-vue
+sdgo new portal-demo --template sdkitgo-portal-vue
+sdgo new api-demo --module mycorp/api-demo
+sdgo template list
+sdgo template info sdkitgo
 ```
 
 ```bash
 cd demo
 sdgo dev
 sdgo run
-sdgo run --cmd "go run ./cmd/demo serve api"
-sdgo run go run ./cmd/demo serve worker
+sdgo serve api
+sdgo serve worker
+sdgo run api
+sdgo run worker
+sdgo serve api --no-watch
+sdgo run --cmd "go run ./cmd/demo serve custom"
 ```
 
 ```bash
 sdgo gen module user
+```
+
+```bash
+sdgo update
+sdgo upgrade v0.2.0
 ```
 
 ## Documentation
@@ -64,3 +81,4 @@ sdgo gen module user
 - [Usage](docs/usage.md): command usage and examples.
 - [Design](docs/design.md): tool design, generation rules, and maintenance rules.
 - [Commands](docs/commands.md): command reference.
+- [更新日志](CHANGELOG.md): 重要变更记录。

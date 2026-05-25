@@ -10,7 +10,7 @@
 Local development install:
 
 ```bash
-cd /Users/huwenlong/data/lab/sdgo
+cd /path/to/sdgo
 go install ./cmd/sdgo
 ```
 
@@ -26,37 +26,79 @@ sdgo --help
 Create a new project from the local `sdkitgo` template:
 
 ```bash
-cd /Users/huwenlong/data/lab
-sdgo new demo --module github.com/acme/demo
+cd /path/to/workspace
+sdgo new demo
+```
+
+If no local template is found, the default `sdkitgo` template falls back to:
+
+```bash
+git@gitee.com:sd0/sdkitgo.git
 ```
 
 If the template is not in the default location, pass it explicitly:
 
 ```bash
-sdgo new demo --module github.com/acme/demo --source /Users/huwenlong/data/lab/sdkitgo
+sdgo new demo --source ../sdkitgo
 ```
 
-Or set it once in your shell:
+Private template repositories are supported through local paths or Git URLs. Git authentication is handled by your local `git` setup, such as SSH keys or credential helpers:
 
 ```bash
-export SDKITGO_SOURCE=/Users/huwenlong/data/lab/sdkitgo
-sdgo new demo --module github.com/acme/demo
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git --branch dev
+```
+
+For future built-in templates, select the template by name:
+
+```bash
+sdgo new demo --template sdkitgo-admin-vue
+```
+
+Template names should describe concrete templates rather than broad project types. For example:
+
+```bash
+sdgo new api-demo
+sdgo new admin-demo --template sdkitgo-admin-vue
+sdgo new portal-demo --template sdkitgo-portal-vue
+```
+
+List built-in templates:
+
+```bash
+sdgo template list
+sdgo template info sdkitgo
+```
+
+Or set a template source once in your shell:
+
+```bash
+export SDKITGO_SOURCE=/path/to/sdkitgo
+sdgo new demo
+```
+
+Named templates use a predictable environment variable:
+
+```bash
+export SDGO_TEMPLATE_SDKITGO_ADMIN_VUE_SOURCE=git@gitee.com:sd0/admin.sdkitgo.cn.git
+sdgo new demo --template sdkitgo-admin-vue
 ```
 
 Options:
 
-- `--module`: Go module path. Defaults to the project directory name.
-- `--source`: `sdkitgo` template project path.
+- `--module`: Go module path for Go templates. Defaults to the project directory name, for example `demo`. It is not used for Node/frontend templates.
+- `--source`: template project path or Git URL.
+- `--template`: template name used for default source lookup. Defaults to `sdkitgo`.
+- `--branch`: Git branch or tag to clone when `--source` is a Git URL.
 - `--force`: overwrite existing files in the target project directory.
 
 Generation behavior:
 
-- copies the `sdkitgo` template project.
-- rewrites `go.mod` module path.
-- rewrites Go imports from `sdkitgo/...` to the new module path.
-- renames `cmd/sdkitgo` to `cmd/<project>`.
+- copies the selected template project.
+- for Go templates, rewrites `go.mod`, Go imports, and `cmd/<template>` to `cmd/<project>`.
+- for Node/frontend templates, rewrites `package.json` package name.
 - rewrites project names in Go, YAML, Makefile, and Dockerfile files.
-- skips local runtime/cache directories such as `.git`, `.gitnexus`, `.cache`, `bin`, `logs`, `storage`, `tmp`, `vendor`, and `node_modules`.
+- skips local runtime/cache directories such as `.git`, `.gitnexus`, `.cache`, `bin`, `dist`, `logs`, `storage`, `tmp`, `vendor`, and `node_modules`.
 
 Project names may contain letters, numbers, hyphens, and underscores, and must start with a letter. For a project named `demo-app`, the project directory remains `demo-app`, while the Go command directory becomes `cmd/demoapp`.
 
@@ -75,20 +117,61 @@ Default behavior:
 
 - finds the only `cmd/*/main.go` entry.
 - starts `go run ./cmd/<project> serve`.
-- watches source/config directories.
+- watches the current project directory.
+- skips generated, runtime, dependency, and VCS directories.
 - restarts the process when watched files change.
+- prints the running command and watched paths.
 
-Use a custom command when needed:
+Run sdkitgo serve targets:
 
 ```bash
-sdgo run --cmd "go run ./cmd/demo serve api"
-sdgo run go run ./cmd/demo serve worker
+sdgo serve api
+sdgo serve worker
+sdgo run api
+sdgo run worker
+```
+
+These short forms run:
+
+```bash
+go run ./cmd/<project> serve api
+go run ./cmd/<project> serve worker
+```
+
+`sdgo serve <target>` is the clearer sdkitgo-specific form. `sdgo run <target>` is kept as a compatible shortcut.
+
+Use a full custom command only when needed:
+
+```bash
+sdgo run --cmd "go run ./cmd/demo serve custom"
+sdgo run go run ./cmd/demo serve custom
 ```
 
 Limit watch paths:
 
 ```bash
 sdgo dev --watch app,configs,command,bootstrap,cmd
+```
+
+Disable file watching for process-manager or production-style usage:
+
+```bash
+sdgo serve api --no-watch
+sdgo run --cmd "go run ./cmd/demo serve api" --no-watch
+```
+
+Startup output includes the active command and watch mode:
+
+```text
+running: go run ./cmd/demo serve api
+watching: .
+```
+
+With `--no-watch`:
+
+```text
+running: go run ./cmd/demo serve api
+watching: disabled
 ```
 
 Watched file types:
@@ -101,13 +184,33 @@ Watched file types:
 - `.yml`
 - `.json`
 
+Go test files are ignored:
+
+- `*_test.go`
+
 Skipped watch directories:
 
 - `.git`
+- `.gitnexus`
+- `.cache`
+- `.claude`
+- `.codex`
+- `.idea`
+- `.next`
+- `.nuxt`
+- `.svelte-kit`
 - `.tmp`
+- `.vite`
+- `.vscode`
+- `bin`
+- `build`
+- `coverage`
+- `dist`
+- `logs`
+- `node_modules`
+- `storage`
 - `tmp`
 - `vendor`
-- `node_modules`
 
 ## Generate Module
 
@@ -128,11 +231,33 @@ Options:
 - `--force`: overwrite existing module files.
 - `--with-docs`: reserved flag. Module docs are generated by default.
 
+## Update CLI
+
+Update the installed `sdgo` binary from GitHub:
+
+```bash
+sdgo update
+```
+
+This runs:
+
+```bash
+go install github.com/huwenlong/sdgo/cmd/sdgo@latest
+```
+
+Install a specific version:
+
+```bash
+sdgo update v0.2.0
+```
+
+`sdgo upgrade` is an alias of `sdgo update`.
+
 ## Typical Workflow
 
 ```bash
-cd /Users/huwenlong/data/lab
-sdgo new demo --module github.com/acme/demo
+cd /path/to/workspace
+sdgo new demo
 cd demo
 sdgo dev
 ```

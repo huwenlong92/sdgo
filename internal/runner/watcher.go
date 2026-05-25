@@ -81,7 +81,7 @@ func (s Snapshot) Equal(other Snapshot) bool {
 
 func shouldSkipDir(name string) bool {
 	switch name {
-	case ".git", ".tmp", "tmp", "vendor", "node_modules":
+	case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".tmp", ".vite", ".vscode", "bin", "build", "coverage", "dist", "logs", "node_modules", "storage", "tmp", "vendor":
 		return true
 	default:
 		return false
@@ -89,6 +89,9 @@ func shouldSkipDir(name string) bool {
 }
 
 func shouldWatchFile(path string) bool {
+	if strings.HasSuffix(strings.ToLower(filepath.Base(path)), "_test.go") {
+		return false
+	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".go", ".tpl", ".tmpl", ".html", ".yaml", ".yml", ".json":
 		return true

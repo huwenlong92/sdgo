@@ -31,11 +31,30 @@ func TestDefaultRunCommand(t *testing.T) {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 
-	got, err := DefaultRunCommand(dir)
+	got, err := DefaultRunCommand(dir, "")
 	if err != nil {
 		t.Fatalf("DefaultRunCommand returned error: %v", err)
 	}
 	if got != "go run ./cmd/demo serve" {
+		t.Fatalf("unexpected command: %s", got)
+	}
+}
+
+func TestDefaultRunCommandWithTarget(t *testing.T) {
+	dir := t.TempDir()
+	mainPath := filepath.Join(dir, "cmd", "demo", "main.go")
+	if err := os.MkdirAll(filepath.Dir(mainPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll returned error: %v", err)
+	}
+	if err := os.WriteFile(mainPath, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile returned error: %v", err)
+	}
+
+	got, err := DefaultRunCommand(dir, "api")
+	if err != nil {
+		t.Fatalf("DefaultRunCommand returned error: %v", err)
+	}
+	if got != "go run ./cmd/demo serve api" {
 		t.Fatalf("unexpected command: %s", got)
 	}
 }
@@ -52,7 +71,7 @@ func TestDefaultRunCommandRequiresExplicitCommandWhenAmbiguous(t *testing.T) {
 		}
 	}
 
-	if _, err := DefaultRunCommand(dir); err == nil {
+	if _, err := DefaultRunCommand(dir, ""); err == nil {
 		t.Fatalf("expected ambiguous cmd entries to return an error")
 	}
 }

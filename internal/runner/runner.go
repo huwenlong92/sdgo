@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -16,7 +15,9 @@ import (
 
 type Options struct {
 	Command string
+	Target  string
 	Watch   string
+	NoWatch bool
 }
 
 func Run(dir string, opt Options) error {
@@ -24,14 +25,22 @@ func Run(dir string, opt Options) error {
 		return fmt.Errorf("current directory is not a Go project: go.mod not found")
 	}
 	if opt.Command == "" {
-		command, err := project.DefaultRunCommand(dir)
+		command, err := project.DefaultRunCommand(dir, opt.Target)
 		if err != nil {
 			return err
 		}
 		opt.Command = command
 	}
 
-	watcher := NewWatcher(dir, watchRoots(dir, opt.Watch))
+	roots := watchRoots(opt.Watch)
+	fmt.Fprintf(os.Stderr, "running: %s\n", opt.Command)
+	if opt.NoWatch {
+		fmt.Fprintln(os.Stderr, "watching: disabled")
+	} else {
+		fmt.Fprintf(os.Stderr, "watching: %s\n", strings.Join(roots, ", "))
+	}
+
+	watcher := NewWatcher(dir, roots)
 	snapshot, err := watcher.Snapshot()
 	if err != nil {
 		return err
@@ -40,6 +49,10 @@ func Run(dir string, opt Options) error {
 	proc, err := start(dir, opt.Command)
 	if err != nil {
 		return err
+	}
+
+	if opt.NoWatch {
+		return waitProcess(proc)
 	}
 	defer proc.Stop()
 
@@ -63,6 +76,7 @@ func Run(dir string, opt Options) error {
 			if !snapshot.Equal(next) {
 				fmt.Fprintln(os.Stderr, "file changed, restarting...")
 				proc.Stop()
+				fmt.Fprintf(os.Stderr, "running: %s\n", opt.Command)
 				proc, err = start(dir, opt.Command)
 				if err != nil {
 					return err
@@ -70,6 +84,20 @@ func Run(dir string, opt Options) error {
 				snapshot = next
 			}
 		}
+	}
+}
+
+func waitProcess(proc *Process) error {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signals)
+
+	select {
+	case <-signals:
+		proc.Stop()
+		return nil
+	case err := <-proc.done:
+		return err
 	}
 }
 
@@ -116,7 +144,7 @@ func shellCommand(command string) *exec.Cmd {
 	return exec.Command("/bin/sh", "-c", command)
 }
 
-func watchRoots(dir string, raw string) []string {
+func watchRoots(raw string) []string {
 	if raw != "" {
 		parts := strings.Split(raw, ",")
 		roots := make([]string, 0, len(parts))
@@ -128,16 +156,5 @@ func watchRoots(dir string, raw string) []string {
 		}
 		return roots
 	}
-
-	candidates := []string{"app", "bootstrap", "command", "configs", "core", "modules", "pkg", "cmd"}
-	roots := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if _, err := os.Stat(filepath.Join(dir, candidate)); err == nil {
-			roots = append(roots, candidate)
-		}
-	}
-	if len(roots) == 0 {
-		return []string{"."}
-	}
-	return roots
+	return []string{"."}
 }
