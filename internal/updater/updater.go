@@ -43,6 +43,13 @@ func Run(opt Options) error {
 		return fmt.Errorf("upgrade sdgo: %w", err)
 	}
 	fmt.Fprintln(stdout, "sdgo upgraded")
+	path, version, err := installedVersion()
+	if err != nil {
+		fmt.Fprintf(stdout, "current sdgo version: unknown (%v)\n", err)
+		return nil
+	}
+	fmt.Fprintf(stdout, "current sdgo: %s\n", path)
+	fmt.Fprintf(stdout, "current sdgo version: %s\n", version)
 	return nil
 }
 
@@ -52,4 +59,20 @@ func NormalizeVersion(version string) string {
 		return "latest"
 	}
 	return version
+}
+
+func installedVersion() (string, string, error) {
+	path, err := os.Executable()
+	if err != nil || path == "" {
+		path, err = exec.LookPath("sdgo")
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	out, err := exec.Command(path, "version").Output()
+	if err != nil {
+		return path, "", err
+	}
+	return path, strings.TrimSpace(string(out)), nil
 }
