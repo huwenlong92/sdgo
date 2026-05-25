@@ -4,7 +4,7 @@
 
 ### 新增
 
-- 新增 `sdgo update` 和 `sdgo upgrade`，用于更新已安装的 CLI。
+- 新增 `sdgo upgrade`，用于升级已安装的 CLI。
 - `sdgo new` 支持 Git URL 模板源，可通过本机 Git 认证访问私有仓库。
 - 新增 `--branch`，用于克隆模板的指定分支或 tag。
 - 新增内置模板：

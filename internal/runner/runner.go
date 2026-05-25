@@ -33,12 +33,7 @@ func Run(dir string, opt Options) error {
 	}
 
 	roots := watchRoots(opt.Watch)
-	fmt.Fprintf(os.Stderr, "running: %s\n", opt.Command)
-	if opt.NoWatch {
-		fmt.Fprintln(os.Stderr, "watching: disabled")
-	} else {
-		fmt.Fprintf(os.Stderr, "watching: %s\n", strings.Join(roots, ", "))
-	}
+	printStartup(opt, roots)
 
 	watcher := NewWatcher(dir, roots)
 	snapshot, err := watcher.Snapshot()
@@ -74,9 +69,8 @@ func Run(dir string, opt Options) error {
 				continue
 			}
 			if !snapshot.Equal(next) {
-				fmt.Fprintln(os.Stderr, "file changed, restarting...")
+				printRestart(opt.Command)
 				proc.Stop()
-				fmt.Fprintf(os.Stderr, "running: %s\n", opt.Command)
 				proc, err = start(dir, opt.Command)
 				if err != nil {
 					return err
@@ -85,6 +79,35 @@ func Run(dir string, opt Options) error {
 			}
 		}
 	}
+}
+
+func printStartup(opt Options, roots []string) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr, "| sdgo                                                       |")
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr, "  status    starting")
+	fmt.Fprintf(os.Stderr, "  command   %s\n", opt.Command)
+	if opt.NoWatch {
+		fmt.Fprintln(os.Stderr, "  watch     disabled")
+	} else {
+		fmt.Fprintln(os.Stderr, "  watch     enabled")
+		fmt.Fprintf(os.Stderr, "  paths     %s\n", strings.Join(roots, ", "))
+		fmt.Fprintln(os.Stderr, "  ignores   .git, node_modules, vendor, dist, build, logs, storage, tmp, *_test.go")
+	}
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr, "")
+}
+
+func printRestart(command string) {
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr, "| sdgo                                                       |")
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr, "  status    file changed, restarting")
+	fmt.Fprintf(os.Stderr, "  command   %s\n", command)
+	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
+	fmt.Fprintln(os.Stderr)
 }
 
 func waitProcess(proc *Process) error {

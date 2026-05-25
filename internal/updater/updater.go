@@ -34,15 +34,15 @@ func Run(opt Options) error {
 		stderr = os.Stderr
 	}
 
-	fmt.Fprintf(stdout, "updating sdgo: go install %s\n", installTarget)
+	fmt.Fprintf(stdout, "upgrading sdgo: go install %s\n", installTarget)
 	cmd := exec.Command("go", "install", installTarget)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("update sdgo: %w", err)
+		return fmt.Errorf("upgrade sdgo: %w", err)
 	}
-	fmt.Fprintln(stdout, "sdgo updated")
+	fmt.Fprintln(stdout, "sdgo upgraded")
 	return nil
 }
 

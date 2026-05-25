@@ -1,29 +1,37 @@
 # sdgo
 
-`sdgo` is the local CLI for creating and running projects from the `sdkitgo` template repository.
+`sdgo` 是用于创建和开发 `sdkitgo` 项目的本地 CLI。
 
-The split is intentional:
+它有两类能力：
 
-- `sdkitgo`: template project, used as the source skeleton.
-- `sdgo`: scaffold and development tool, used in new project directories.
+- 通用脚手架：通过模板快速创建 Go 或前端项目。
+- sdkitgo 开发工具：运行 Go 项目、热重载、生成模块骨架。
 
-## Install
+## 安装
 
-From this repository:
-
-```bash
-go install ./cmd/sdgo
-```
-
-Or from a module path:
+从 GitHub 安装：
 
 ```bash
 go install github.com/huwenlong92/sdgo/cmd/sdgo@latest
 ```
 
-## Quick Start
+本仓库开发安装：
 
-Create a project from the local `sdkitgo` template:
+```bash
+go install ./cmd/sdgo
+```
+
+验证：
+
+```bash
+sdgo version
+sdgo --help
+sdgo template list
+```
+
+## 创建项目
+
+创建默认 Go 后端项目：
 
 ```bash
 sdgo new demo
@@ -31,54 +39,118 @@ cd demo
 sdgo dev
 ```
 
-`sdgo new` copies the `sdkitgo` template project and rewrites project identity:
+默认模板是 `sdkitgo`。如果本地没有模板，会从内置源拉取：
 
-- `go.mod` module path.
-- Go imports from `sdkitgo/...` to the new module path.
-- `cmd/sdkitgo` to `cmd/<project>`.
-- runtime names in Go, YAML, Makefile, and Dockerfile files.
-- local cache/runtime folders are skipped.
+```text
+git@gitee.com:sd0/sdkitgo.git
+```
 
-If no local `sdkitgo` template is found, `sdgo new` falls back to `git@gitee.com:sd0/sdkitgo.git`.
-
-## Common Commands
+指定模板：
 
 ```bash
-sdgo new demo
-sdgo new demo --source ../sdkitgo
-sdgo new demo --source git@gitee.com:sd0/sdkitgo.git
-sdgo new demo --source git@gitee.com:sd0/sdkitgo.git --branch dev
 sdgo new admin-demo --template sdkitgo-admin-vue
 sdgo new portal-demo --template sdkitgo-portal-vue
-sdgo new api-demo --module mycorp/api-demo
+```
+
+查看内置模板：
+
+```bash
 sdgo template list
 sdgo template info sdkitgo
 ```
 
+指定本地或 Git 模板源：
+
 ```bash
-cd demo
+sdgo new demo --source ../sdkitgo
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git
+sdgo new demo --source git@gitee.com:sd0/sdkitgo.git --branch dev
+```
+
+Go 模板可以指定 module path；不传时默认使用项目名：
+
+```bash
+sdgo new api-demo --module mycorp/api-demo
+```
+
+前端模板不使用 `--module`，只会改写 `package.json` 的 `name`。
+
+## 运行项目
+
+默认开发运行，带热重载：
+
+```bash
 sdgo dev
 sdgo run
+```
+
+运行 sdkitgo serve 目标：
+
+```bash
 sdgo serve api
 sdgo serve worker
+```
+
+兼容短写：
+
+```bash
 sdgo run api
 sdgo run worker
-sdgo serve api --no-watch
-sdgo run --cmd "go run ./cmd/demo serve custom"
 ```
+
+完整自定义命令：
+
+```bash
+sdgo run --cmd "go run ./cmd/demo serve custom"
+sdgo run go run ./cmd/demo serve custom
+```
+
+默认监听当前项目目录，并跳过依赖、构建产物、运行时目录、缓存目录和 `*_test.go`。
+
+关闭监听，适合进程管理器或线上风格运行：
+
+```bash
+sdgo serve api --no-watch
+```
+
+手动限制监听目录：
+
+```bash
+sdgo dev --watch app,configs,command
+```
+
+## 生成模块
+
+在 Go 项目目录中生成模块骨架和文档：
 
 ```bash
 sdgo gen module user
 ```
 
+会创建：
+
+- `modules/user`
+- `docs/modules/user.md`
+- `docs/usage/user.md`
+
+## 升级 CLI
+
 ```bash
-sdgo update
+sdgo upgrade
 sdgo upgrade v0.2.0
 ```
 
-## Documentation
+## 内置模板
 
-- [Usage](docs/usage.md): command usage and examples.
-- [Design](docs/design.md): tool design, generation rules, and maintenance rules.
-- [Commands](docs/commands.md): command reference.
-- [更新日志](CHANGELOG.md): 重要变更记录。
+```text
+sdkitgo             go    git@gitee.com:sd0/sdkitgo.git
+sdkitgo-admin-vue   node  git@gitee.com:sd0/admin.sdkitgo.cn.git
+sdkitgo-portal-vue  node  git@gitee.com:sd0/portal.sdkit.cn.git
+```
+
+## 文档
+
+- [使用说明](docs/usage.md)
+- [命令参考](docs/commands.md)
+- [设计说明](docs/design.md)
+- [更新日志](CHANGELOG.md)

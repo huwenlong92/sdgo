@@ -5,13 +5,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newUpdateCommand() *cobra.Command {
+func newUpgradeCommand() *cobra.Command {
 	var opt updater.Options
 
 	cmd := &cobra.Command{
-		Use:     "update [version]",
-		Aliases: []string{"upgrade"},
-		Short:   "Update the sdgo CLI.",
+		Use:   "upgrade [version]",
+		Short: "Upgrade the sdgo CLI.",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
