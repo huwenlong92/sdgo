@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
 
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -24,12 +25,20 @@ func NewRootCommand() *cobra.Command {
 	return cmd
 }
 
+func versionString() string {
+	info, ok := debug.ReadBuildInfo()
+	if ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return Version
+}
+
 func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the sdgo CLI version.",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), Version)
+			fmt.Fprintln(cmd.OutOrStdout(), versionString())
 		},
 	}
 }
