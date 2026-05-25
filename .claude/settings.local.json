@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod *)",
+      "Bash(go get *)",
+      "Bash(mkdir -p cmd/sdkitgo internal/cli/command internal/cli/template templates/crud templates/base templates/module-audit)",
+      "Bash(go build *)",
+      "Bash(./sdkitgo version *)",
+      "Bash(./sdkitgo doctor *)",
+      "Bash(./sdkitgo gen *)",
+      "Read(//private/tmp/demo/**)",
+      "Bash(go run *)",
+      "Bash(/Users/huwenlong/data/lab/sdkitgo-cli/sdkitgo gen *)",
+      "Bash(/Users/huwenlong/data/lab/sdkitgo-cli/sdkitgo module *)"
+    ]
+  }
+}

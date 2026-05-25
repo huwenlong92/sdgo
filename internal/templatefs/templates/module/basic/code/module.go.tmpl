@@ -1,0 +1,11 @@
+package {{ .PackageName }}
+
+type Module struct{}
+
+func NewModule() *Module {
+	return &Module{}
+}
+
+func (m *Module) Name() string {
+	return "{{ .SnakeName }}"
+}

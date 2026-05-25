@@ -1,0 +1,29 @@
+package cli
+
+import (
+	"strings"
+
+	"github.com/huwenlong/sdgo/internal/runner"
+	"github.com/spf13/cobra"
+)
+
+func newRunCommand() *cobra.Command {
+	var opt runner.Options
+
+	cmd := &cobra.Command{
+		Use:     "run [command...]",
+		Aliases: []string{"dev"},
+		Short:   "Run the current project with built-in hot reload.",
+		Args:    cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				opt.Command = strings.Join(args, " ")
+			}
+			return runner.Run(".", opt)
+		},
+	}
+
+	cmd.Flags().StringVar(&opt.Command, "cmd", "", "command to run")
+	cmd.Flags().StringVar(&opt.Watch, "watch", "", "comma-separated watch paths")
+	return cmd
+}
