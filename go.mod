@@ -1,4 +1,4 @@
-module github.com/huwenlong/sdgo
+module github.com/huwenlong92/sdgo
 
 go 1.25.10
 

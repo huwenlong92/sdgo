@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/huwenlong/sdgo/internal/project"
+	"github.com/huwenlong92/sdgo/internal/project"
 )
 
 type Options struct {

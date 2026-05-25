@@ -18,7 +18,7 @@ go install ./cmd/sdgo
 Or from a module path:
 
 ```bash
-go install github.com/huwenlong/sdgo/cmd/sdgo@latest
+go install github.com/huwenlong92/sdgo/cmd/sdgo@latest
 ```
 
 ## Quick Start

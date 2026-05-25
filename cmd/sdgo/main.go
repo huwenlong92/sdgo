@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/huwenlong/sdgo/internal/cli"
+	"github.com/huwenlong92/sdgo/internal/cli"
 )
 
 func main() {

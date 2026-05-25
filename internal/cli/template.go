@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/huwenlong/sdgo/internal/generator"
+	"github.com/huwenlong92/sdgo/internal/generator"
 	"github.com/spf13/cobra"
 )
 

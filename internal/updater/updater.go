@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const DefaultInstallTarget = "github.com/huwenlong/sdgo/cmd/sdgo"
+const DefaultInstallTarget = "github.com/huwenlong92/sdgo/cmd/sdgo"
 
 type Options struct {
 	Version string

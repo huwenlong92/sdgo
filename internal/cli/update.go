@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/huwenlong/sdgo/internal/updater"
+	"github.com/huwenlong92/sdgo/internal/updater"
 	"github.com/spf13/cobra"
 )
 

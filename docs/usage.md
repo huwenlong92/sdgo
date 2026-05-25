@@ -242,7 +242,7 @@ sdgo update
 This runs:
 
 ```bash
-go install github.com/huwenlong/sdgo/cmd/sdgo@latest
+go install github.com/huwenlong92/sdgo/cmd/sdgo@latest
 ```
 
 Install a specific version:

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/huwenlong/sdgo/internal/project"
-	"github.com/huwenlong/sdgo/internal/renderer"
-	"github.com/huwenlong/sdgo/internal/templatefs"
+	"github.com/huwenlong92/sdgo/internal/project"
+	"github.com/huwenlong92/sdgo/internal/renderer"
+	"github.com/huwenlong92/sdgo/internal/templatefs"
 )
 
 type ModuleOptions struct {

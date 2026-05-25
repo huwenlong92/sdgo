@@ -101,4 +101,4 @@ sdgo upgrade latest
 
 Options:
 
-- `--target`: Go install target. Defaults to `github.com/huwenlong/sdgo/cmd/sdgo`.
+- `--target`: Go install target. Defaults to `github.com/huwenlong92/sdgo/cmd/sdgo`.
