@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 )
 
 const DefaultInstallTarget = "github.com/huwenlong92/sdgo/cmd/sdgo"
+const defaultModulePath = "github.com/huwenlong92/sdgo"
 
 type Options struct {
 	Version string
@@ -23,7 +25,6 @@ func Run(opt Options) error {
 	if target == "" {
 		target = DefaultInstallTarget
 	}
-	installTarget := target + "@" + version
 
 	stdout := opt.Stdout
 	if stdout == nil {
@@ -34,6 +35,30 @@ func Run(opt Options) error {
 		stderr = os.Stderr
 	}
 
+	resolvedVersion := version
+	if version == "latest" {
+		latest, err := resolveLatestVersion(target)
+		if err == nil && latest != "" {
+			resolvedVersion = latest
+			fmt.Fprintf(stdout, "latest sdgo version: %s\n", resolvedVersion)
+		} else if err != nil {
+			fmt.Fprintf(stdout, "latest sdgo version: unknown (%v)\n", err)
+		}
+	}
+
+	path, currentVersion, currentErr := installedVersion()
+	if currentErr == nil && versionsEqual(currentVersion, resolvedVersion) {
+		fmt.Fprintf(stdout, "current sdgo: %s\n", path)
+		fmt.Fprintf(stdout, "current sdgo version: %s\n", currentVersion)
+		fmt.Fprintln(stdout, "sdgo is already up to date")
+		return nil
+	}
+
+	installVersion := version
+	if version == "latest" && resolvedVersion != "latest" {
+		installVersion = resolvedVersion
+	}
+	installTarget := target + "@" + installVersion
 	fmt.Fprintf(stdout, "upgrading sdgo: go install %s\n", installTarget)
 	cmd := exec.Command("go", "install", installTarget)
 	cmd.Stdout = stdout
@@ -61,10 +86,44 @@ func NormalizeVersion(version string) string {
 	return version
 }
 
+func resolveLatestVersion(target string) (string, error) {
+	modulePath := modulePathForTarget(target)
+	out, err := exec.Command("go", "list", "-m", "-json", modulePath+"@latest").Output()
+	if err != nil {
+		return "", err
+	}
+	var info struct {
+		Version string
+	}
+	if err := json.Unmarshal(out, &info); err != nil {
+		return "", err
+	}
+	if info.Version == "" {
+		return "", fmt.Errorf("version not found")
+	}
+	return info.Version, nil
+}
+
+func modulePathForTarget(target string) string {
+	if target == DefaultInstallTarget {
+		return defaultModulePath
+	}
+	if strings.HasSuffix(target, "/cmd/sdgo") {
+		return strings.TrimSuffix(target, "/cmd/sdgo")
+	}
+	return target
+}
+
+func versionsEqual(a string, b string) bool {
+	a = strings.TrimPrefix(strings.TrimSpace(a), "v")
+	b = strings.TrimPrefix(strings.TrimSpace(b), "v")
+	return a != "" && a == b
+}
+
 func installedVersion() (string, string, error) {
-	path, err := os.Executable()
+	path, err := exec.LookPath("sdgo")
 	if err != nil || path == "" {
-		path, err = exec.LookPath("sdgo")
+		path, err = os.Executable()
 		if err != nil {
 			return "", "", err
 		}
