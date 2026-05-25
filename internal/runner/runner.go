@@ -62,6 +62,8 @@ func Run(dir string, opt Options) error {
 		select {
 		case <-signals:
 			return nil
+		case err := <-proc.done:
+			return err
 		case <-ticker.C:
 			next, err := watcher.Snapshot()
 			if err != nil {
@@ -135,6 +137,7 @@ func start(dir string, command string) (*Process, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+	configureCommand(cmd)
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start command %q: %w", command, err)
@@ -151,12 +154,20 @@ func (p *Process) Stop() {
 	if p == nil || p.cmd == nil || p.cmd.Process == nil {
 		return
 	}
-	_ = p.cmd.Process.Signal(os.Interrupt)
 	select {
 	case <-p.done:
-	case <-time.After(500 * time.Millisecond):
-		_ = p.cmd.Process.Kill()
-		<-p.done
+		return
+	default:
+	}
+	_ = interruptCommand(p.cmd)
+	select {
+	case <-p.done:
+	case <-time.After(2 * time.Second):
+		_ = killCommand(p.cmd)
+		select {
+		case <-p.done:
+		case <-time.After(time.Second):
+		}
 	}
 }
 

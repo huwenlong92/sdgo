@@ -11,7 +11,6 @@ This document records the current tool plan and maintenance rules.
 - create a new project from the `sdkitgo` template.
 - normalize project names, module paths, imports, and command entry directories.
 - run a generated project with built-in hot reload.
-- generate module skeletons and matching docs.
 - upgrade the installed `sdgo` CLI binary.
 
 The generated project should not keep `sdkitgo` as its application command name. `sdkitgo` is only the template source identity.
@@ -31,7 +30,6 @@ Examples:
 ```bash
 sdgo new demo
 sdgo dev
-sdgo gen module user
 sdgo upgrade
 ```
 
@@ -128,9 +126,9 @@ Shutdown behavior:
 
 File watching is enabled by default because `sdgo` is primarily a development tool. Use `--no-watch` when running under a process manager or production-style environment.
 
-## Module Generation Rules
+## Reserved Module Generation Plan
 
-`sdgo gen module <name>` creates application module skeletons under `modules/<name>`.
+Module generation is intentionally not exposed in the CLI yet. The current reserved plan is to create application module skeletons under `modules/<name>`.
 
 It also creates docs:
 

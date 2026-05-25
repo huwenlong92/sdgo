@@ -5,7 +5,7 @@
 它有两类能力：
 
 - 通用脚手架：通过模板快速创建 Go 或前端项目。
-- sdkitgo 开发工具：运行 Go 项目、热重载、生成模块骨架。
+- sdkitgo 开发工具：运行 Go 项目、热重载。
 
 ## 安装
 
@@ -119,26 +119,33 @@ sdgo serve api --no-watch
 sdgo dev --watch app,configs,command
 ```
 
-## 生成模块
-
-在 Go 项目目录中生成模块骨架和文档：
-
-```bash
-sdgo gen module user
-```
-
-会创建：
-
-- `modules/user`
-- `docs/modules/user.md`
-- `docs/usage/user.md`
-
 ## 升级 CLI
 
 ```bash
 sdgo upgrade
 sdgo upgrade v0.2.0
 ```
+
+## 命令补全
+
+`completion` 不会显示在 `sdgo --help` 里，但可以用来安装 shell 补全。
+
+zsh：
+
+```bash
+mkdir -p ~/.zsh/completions
+sdgo completion zsh > ~/.zsh/completions/_sdgo
+```
+
+然后确保 `~/.zshrc` 里有：
+
+```bash
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit
+compinit
+```
+
+重开终端后即可补全 `sdgo` 命令和参数。
 
 ## 内置模板
 
