@@ -98,11 +98,13 @@ sdgo run api
 sdgo run worker
 ```
 
+`api`、`worker` 这类目标来自项目内的 `cmd/<target>/main.go`，新增入口后可以直接用同名目标运行。
+
 完整自定义命令：
 
 ```bash
-sdgo run --cmd "go run ./cmd/demo serve custom"
-sdgo run go run ./cmd/demo serve custom
+sdgo run --cmd "go run ./cmd/api -c configs/config.yaml"
+sdgo run go run ./cmd/api -c configs/config.yaml
 ```
 
 默认监听当前项目目录，并跳过依赖、构建产物、运行时目录、缓存目录和 `*_test.go`。

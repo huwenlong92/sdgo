@@ -30,10 +30,12 @@ Examples:
 sdgo run
 sdgo run api
 sdgo run worker
-sdgo run --cmd "go run ./cmd/demo serve custom"
+sdgo run --cmd "go run ./cmd/api -c configs/config.yaml"
 ```
 
-With one short argument, `sdgo run <target>` is treated as `go run ./cmd/<project> serve <target>`.
+With one short argument, `sdgo run <target>` is treated as `go run ./cmd/<target>`.
+Without a target, `sdgo run` prefers `go run ./cmd/serve` when `cmd/serve/main.go` exists.
+Targets are discovered from `cmd/<target>/main.go`, not from a hard-coded list.
 
 Options:
 
@@ -43,7 +45,7 @@ Options:
 
 ## sdgo serve [target]
 
-Runs an sdkitgo `serve` target with built-in hot reload.
+Runs an sdkitgo command entry with built-in hot reload.
 
 Examples:
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -25,6 +26,7 @@ type sourceIdentity struct {
 	Kind        templateKind
 	ModulePath  string
 	CommandName string
+	ProjectName string
 	PackageName string
 }
 
@@ -270,14 +272,23 @@ func inspectGoTemplateSource(dir string) (sourceIdentity, bool, error) {
 	if err != nil {
 		return sourceIdentity{}, false, err
 	}
-	commandName, err := singleCommandName(dir)
+	commandNames, err := commandNames(dir)
 	if err != nil {
 		return sourceIdentity{}, false, err
 	}
-	if commandName == "" {
+	if len(commandNames) == 0 {
 		return sourceIdentity{}, false, nil
 	}
-	return sourceIdentity{Kind: templateKindGo, ModulePath: modulePath, CommandName: commandName}, true, nil
+	commandName := ""
+	if len(commandNames) == 1 {
+		commandName = commandNames[0]
+	}
+	return sourceIdentity{
+		Kind:        templateKindGo,
+		ModulePath:  modulePath,
+		CommandName: commandName,
+		ProjectName: sourceProjectName(modulePath, commandName),
+	}, true, nil
 }
 
 func inspectNodeTemplateSource(dir string) (sourceIdentity, bool, error) {
@@ -326,14 +337,14 @@ func readPackageName(path string) (string, error) {
 	return data.Name, nil
 }
 
-func singleCommandName(dir string) (string, error) {
+func commandNames(dir string) ([]string, error) {
 	root := filepath.Join(dir, "cmd")
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil
+			return nil, nil
 		}
-		return "", fmt.Errorf("read cmd directory: %w", err)
+		return nil, fmt.Errorf("read cmd directory: %w", err)
 	}
 
 	var candidates []string
@@ -345,14 +356,37 @@ func singleCommandName(dir string) (string, error) {
 			candidates = append(candidates, entry.Name())
 		}
 	}
-	switch len(candidates) {
+	sort.Strings(candidates)
+	return candidates, nil
+}
+
+func singleCommandName(dir string) (string, error) {
+	names, err := commandNames(dir)
+	if err != nil {
+		return "", err
+	}
+	switch len(names) {
 	case 0:
 		return "", nil
 	case 1:
-		return candidates[0], nil
+		return names[0], nil
 	default:
-		return "", fmt.Errorf("multiple template command entries found: %v", candidates)
+		return "", fmt.Errorf("multiple template command entries found: %v", names)
 	}
+}
+
+func sourceProjectName(modulePath string, commandName string) string {
+	if commandName != "" {
+		return commandName
+	}
+	modulePath = strings.Trim(modulePath, "/")
+	if modulePath == "" {
+		return ""
+	}
+	if i := strings.LastIndex(modulePath, "/"); i >= 0 {
+		return modulePath[i+1:]
+	}
+	return modulePath
 }
 
 func copyProject(src string, dst string, data TemplateData, source sourceIdentity, force bool) error {
@@ -385,7 +419,7 @@ func copyProject(src string, dst string, data TemplateData, source sourceIdentit
 
 func mappedProjectPath(dst string, rel string, data TemplateData, source sourceIdentity) string {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if len(parts) >= 2 && parts[0] == "cmd" && parts[1] == source.CommandName {
+	if source.CommandName != "" && len(parts) >= 2 && parts[0] == "cmd" && parts[1] == source.CommandName {
 		parts[1] = data.LowerName
 	}
 	return filepath.Join(append([]string{dst}, parts...)...)
@@ -439,42 +473,59 @@ func rewriteGoProjectFile(rel string, content []byte, data TemplateData, source 
 	}
 	out := string(content)
 	if filepath.Ext(name) == ".go" {
-		replacer := strings.NewReplacer(
-			`"`+source.ModulePath+`/`, `"`+data.ModulePath+`/`,
-			"`"+source.ModulePath+"/", "`"+data.ModulePath+"/",
-			`"`+source.CommandName+`"`, `"`+data.LowerName+`"`,
-			source.CommandName+" ", data.LowerName+" ",
-			`"`+source.CommandName+`:`, `"`+data.LowerName+`:`,
-			"@"+source.CommandName+".com", "@"+data.LowerName+".com",
-		)
-		out = replacer.Replace(out)
+		pairs := []string{
+			`"` + source.ModulePath + `/`, `"` + data.ModulePath + `/`,
+			"`" + source.ModulePath + "/", "`" + data.ModulePath + "/",
+		}
+		if source.CommandName != "" {
+			pairs = append(pairs,
+				`"`+source.CommandName+`"`, `"`+data.LowerName+`"`,
+				source.CommandName+" ", data.LowerName+" ",
+				`"`+source.CommandName+`:`, `"`+data.LowerName+`:`,
+				"@"+source.CommandName+".com", "@"+data.LowerName+".com",
+			)
+		}
+		out = strings.NewReplacer(pairs...).Replace(out)
 	}
 	if filepath.Ext(name) == ".md" {
-		replacer := strings.NewReplacer(
-			source.ModulePath+"/", data.ModulePath+"/",
-			"/"+source.CommandName+"/", "/"+data.LowerName+"/",
-			"`"+source.CommandName+"`", "`"+data.LowerName+"`",
-			"`"+source.CommandName+" ", "`"+data.LowerName+" ",
-			" "+source.CommandName+" ", " "+data.LowerName+" ",
-		)
-		out = replacer.Replace(out)
+		pairs := []string{
+			source.ModulePath + "/", data.ModulePath + "/",
+		}
+		if source.CommandName != "" {
+			pairs = append(pairs,
+				"/"+source.CommandName+"/", "/"+data.LowerName+"/",
+				"`"+source.CommandName+"`", "`"+data.LowerName+"`",
+				"`"+source.CommandName+" ", "`"+data.LowerName+" ",
+				" "+source.CommandName+" ", " "+data.LowerName+" ",
+			)
+		}
+		out = strings.NewReplacer(pairs...).Replace(out)
 	}
-	out = strings.ReplaceAll(out, "cmd/"+source.CommandName, "cmd/"+data.LowerName)
+	if source.CommandName != "" {
+		out = strings.ReplaceAll(out, "cmd/"+source.CommandName, "cmd/"+data.LowerName)
+	}
 	if name == "Dockerfile" {
-		out = strings.ReplaceAll(out, source.CommandName, data.LowerName)
+		out = replaceSourceProjectName(out, source, data)
 		out = strings.ReplaceAll(out, "COPY "+data.LowerName+"/go.mod "+data.LowerName+"/go.sum", "COPY "+data.ProjectName+"/go.mod "+data.ProjectName+"/go.sum")
 		out = strings.ReplaceAll(out, "COPY "+data.LowerName+"/ ./", "COPY "+data.ProjectName+"/ ./")
 	}
 	if shouldRewriteProjectNameInText(rel) {
-		out = strings.ReplaceAll(out, source.CommandName, data.LowerName)
+		out = replaceSourceProjectName(out, source, data)
 	}
 	if name == "Dockerfile.dockerignore" {
 		out = strings.ReplaceAll(out, data.LowerName+"/", data.ProjectName+"/")
 	}
 	if filepath.ToSlash(rel) == "configs/config.yaml" {
-		out = strings.ReplaceAll(out, "name: "+source.CommandName, "name: "+data.LowerName)
+		out = replaceSourceProjectName(out, source, data)
 	}
 	return []byte(out)
+}
+
+func replaceSourceProjectName(out string, source sourceIdentity, data TemplateData) string {
+	if source.ProjectName == "" {
+		return out
+	}
+	return strings.ReplaceAll(out, source.ProjectName, data.LowerName)
 }
 
 func rewriteNodeProjectFile(rel string, content []byte, data TemplateData, source sourceIdentity) []byte {

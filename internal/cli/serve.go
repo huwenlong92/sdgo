@@ -10,7 +10,7 @@ func newServeCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "serve [target]",
-		Short: "Run an sdkitgo serve target with hot reload.",
+		Short: "Run an sdkitgo cmd entry with hot reload.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {

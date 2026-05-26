@@ -90,6 +90,52 @@ func TestGenerateProjectFromAlternateTemplateIdentity(t *testing.T) {
 	}
 }
 
+func TestGenerateProjectFromMultiCommandTemplate(t *testing.T) {
+	dir := t.TempDir()
+	source := writeMultiCommandProjectSource(t, dir)
+
+	err := GenerateProject(dir, ProjectOptions{Name: "demo-app", ModulePath: "github.com/acme/demo-app", SourceDir: source})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	for _, path := range []string{
+		"cmd/serve/main.go",
+		"cmd/api/main.go",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, "demo-app", path)); err != nil {
+			t.Fatalf("expected generated command file %s: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "demo-app", "cmd", "demoapp", "main.go")); !os.IsNotExist(err) {
+		t.Fatalf("multi-command templates should preserve command directories, got %v", err)
+	}
+
+	mainGo, err := os.ReadFile(filepath.Join(dir, "demo-app", "cmd", "serve", "main.go"))
+	if err != nil {
+		t.Fatalf("ReadFile main.go returned error: %v", err)
+	}
+	if got := string(mainGo); !contains(got, `"github.com/acme/demo-app/command"`) {
+		t.Fatalf("expected import path to be rewritten, got:\n%s", got)
+	}
+
+	config, err := os.ReadFile(filepath.Join(dir, "demo-app", "configs", "config.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile config.yaml returned error: %v", err)
+	}
+	if got := string(config); !contains(got, "name: demoapp") {
+		t.Fatalf("expected app name to be rewritten, got:\n%s", got)
+	}
+
+	dockerfile, err := os.ReadFile(filepath.Join(dir, "demo-app", "deploy", "Dockerfile"))
+	if err != nil {
+		t.Fatalf("ReadFile Dockerfile returned error: %v", err)
+	}
+	if got := string(dockerfile); !contains(got, "COPY demo-app/go.mod demo-app/go.sum") || !contains(got, "./cmd/serve") {
+		t.Fatalf("expected Dockerfile project paths to be rewritten while preserving cmd/serve, got:\n%s", got)
+	}
+}
+
 func TestGenerateProjectFromNodeTemplate(t *testing.T) {
 	dir := t.TempDir()
 	source := writeNodeProjectSource(t, dir)
@@ -271,6 +317,34 @@ func writeNamedProjectSource(t *testing.T, base string, sourceName string) strin
 	}
 	if err := os.Symlink(filepath.Join(base, "external"), filepath.Join(dir, "_reference")); err != nil {
 		t.Fatalf("Symlink returned error: %v", err)
+	}
+	return dir
+}
+
+func writeMultiCommandProjectSource(t *testing.T, base string) string {
+	t.Helper()
+	dir := filepath.Join(base, "template")
+	files := map[string]string{
+		"go.mod":               "module sdkitgo\n\ngo 1.25.0\n",
+		"cmd/serve/main.go":    "package main\n\nimport \"sdkitgo/command\"\n\nfunc main() { command.RegisterAll(nil) }\n",
+		"cmd/api/main.go":      "package main\n\nimport \"sdkitgo/command\"\n\nfunc main() { command.RegisterAll(nil) }\n",
+		"bootstrap/boot.go":    "package bootstrap\n",
+		"command/command.go":   "package command\n",
+		"configs/config.yaml":  "app:\n  name: sdkitgo\n",
+		"deploy/Dockerfile":    "COPY sdkitgo/go.mod sdkitgo/go.sum ./\nCOPY sdkitgo/ ./\nRUN go build -o /out/serve ./cmd/serve\n",
+		"deploy/ignore.txt":    "sdkitgo\n",
+		"tests/skip_test.go":   "package tests\n",
+		"tmp/generated.txt":    "skip\n",
+		"vendor/skip/skip.txt": "skip\n",
+	}
+	for path, content := range files {
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatalf("MkdirAll %s returned error: %v", path, err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile %s returned error: %v", path, err)
+		}
 	}
 	return dir
 }

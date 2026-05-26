@@ -115,16 +115,17 @@ sdgo dev
 
 Default behavior:
 
-- finds the only `cmd/*/main.go` entry.
-- starts `go run ./cmd/<project> serve`.
+- prefers `cmd/serve/main.go` when it exists.
+- otherwise starts the only `cmd/*/main.go` entry.
 - watches the current project directory.
 - skips generated, runtime, dependency, and VCS directories.
 - restarts the process when watched files change.
 - prints the running command and watched paths.
 
-Run sdkitgo serve targets:
+Run sdkitgo command entries:
 
 ```bash
+sdgo serve
 sdgo serve api
 sdgo serve worker
 sdgo run api
@@ -134,17 +135,18 @@ sdgo run worker
 These short forms run:
 
 ```bash
-go run ./cmd/<project> serve api
-go run ./cmd/<project> serve worker
+go run ./cmd/api
+go run ./cmd/worker
 ```
 
-`sdgo serve <target>` is the clearer sdkitgo-specific form. `sdgo run <target>` is kept as a compatible shortcut.
+`sdgo serve <target>` is the clearer sdkitgo-specific form. `sdgo run <target>` is kept as a shortcut.
+Targets are discovered from `cmd/<target>/main.go`; adding a new command entry only requires adding that directory to the project.
 
 Use a full custom command only when needed:
 
 ```bash
-sdgo run --cmd "go run ./cmd/demo serve custom"
-sdgo run go run ./cmd/demo serve custom
+sdgo run --cmd "go run ./cmd/api -c configs/config.yaml"
+sdgo run go run ./cmd/api -c configs/config.yaml
 ```
 
 Limit watch paths:
@@ -157,7 +159,7 @@ Disable file watching for process-manager or production-style usage:
 
 ```bash
 sdgo serve api --no-watch
-sdgo run --cmd "go run ./cmd/demo serve api" --no-watch
+sdgo run --cmd "go run ./cmd/api" --no-watch
 ```
 
 Startup output includes the active command and watch mode:
@@ -167,7 +169,7 @@ Startup output includes the active command and watch mode:
 | sdgo                                                       |
 +------------------------------------------------------------+
   status    starting
-  command   go run ./cmd/demo serve api
+  command   go run ./cmd/api
   watch     enabled
   paths     .
   ignores   .git, node_modules, vendor, dist, build, logs, storage, tmp, *_test.go
@@ -181,7 +183,7 @@ With `--no-watch`:
 | sdgo                                                       |
 +------------------------------------------------------------+
   status    starting
-  command   go run ./cmd/demo serve api
+  command   go run ./cmd/api
   watch     disabled
 +------------------------------------------------------------+
 ```

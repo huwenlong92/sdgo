@@ -66,7 +66,7 @@ Templates are selected with `--template`. The default template is `sdkitgo`, who
 Go template sources must contain:
 
 - `go.mod`
-- exactly one `cmd/*/main.go`
+- at least one `cmd/*/main.go`
 - `bootstrap`
 - `command`
 
@@ -78,8 +78,9 @@ Go rewrite rules:
 
 - `go.mod`: first `module ...` line becomes the requested module path.
 - Go files: imports from the template module path become `<module>/...`.
-- command path: `cmd/<template-command>` becomes `cmd/<normalized-project>`.
-- command use name: the template command name becomes `<normalized-project>` in Go command metadata.
+- single-command templates: `cmd/<template-command>` becomes `cmd/<normalized-project>`.
+- multi-command templates: `cmd/<entry>` directories are preserved, so new service entries work without changing `sdgo`.
+- command use name: for single-command templates, the template command name becomes `<normalized-project>` in Go command metadata.
 - config and deploy files: project identifiers in YAML, Makefile, Dockerfile, and Dockerfile.dockerignore are rewritten.
 
 Node rewrite rules:
@@ -109,10 +110,10 @@ Skip rules:
 Default command:
 
 ```bash
-go run ./cmd/<project> serve
+go run ./cmd/serve
 ```
 
-The default command is only inferred when exactly one `cmd/*/main.go` exists. If there are multiple command entries, pass `--cmd`.
+The default command prefers `cmd/serve/main.go`. If there is no `cmd/serve`, the default command is only inferred when exactly one `cmd/*/main.go` exists. `sdgo run <target>` and `sdgo serve <target>` dynamically run `cmd/<target>/main.go`, so adding a new command entry does not require a `sdgo` change.
 
 The default watch root is the current project directory. The watcher skips generated, runtime, dependency, VCS, and editor/cache directories, then restarts the child process when watched file size or modtime changes.
 
