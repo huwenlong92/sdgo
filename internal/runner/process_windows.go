@@ -9,6 +9,10 @@ import (
 
 func configureCommand(cmd *exec.Cmd) {}
 
+func shutdownSignals() []os.Signal {
+	return []os.Signal{os.Interrupt}
+}
+
 func interruptCommand(cmd *exec.Cmd) error {
 	if cmd.Process == nil {
 		return nil

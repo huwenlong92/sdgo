@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/huwenlong92/sdgo/internal/project"
@@ -52,7 +51,7 @@ func Run(dir string, opt Options) error {
 	defer proc.Stop()
 
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signals, shutdownSignals()...)
 	defer signal.Stop(signals)
 
 	ticker := time.NewTicker(time.Second)
@@ -114,7 +113,7 @@ func printRestart(command string) {
 
 func waitProcess(proc *Process) error {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signals, shutdownSignals()...)
 	defer signal.Stop(signals)
 
 	select {
