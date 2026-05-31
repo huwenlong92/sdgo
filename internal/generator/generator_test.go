@@ -68,6 +68,46 @@ func TestGenerateProjectRewritesModuleAndImports(t *testing.T) {
 	}
 }
 
+func TestGenerateProjectRewritesStaleLocalImportRoot(t *testing.T) {
+	dir := t.TempDir()
+	source := writeProjectSource(t, dir)
+	writeTemplateFile(t, source, "app/admin/provider.go", "package admin\n\nimport \"sdauth/app/infra/capability/storage\"\n\nvar _ = storage.Provider{}\n")
+	writeTemplateFile(t, source, "app/infra/capability/storage/storage.go", "package storage\n\ntype Provider struct{}\n")
+
+	err := GenerateProject(dir, ProjectOptions{Name: "demo", ModulePath: "github.com/acme/demo", SourceDir: source})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	providerGo, err := os.ReadFile(filepath.Join(dir, "demo", "app", "admin", "provider.go"))
+	if err != nil {
+		t.Fatalf("ReadFile provider.go returned error: %v", err)
+	}
+	if got := string(providerGo); !contains(got, `"github.com/acme/demo/app/infra/capability/storage"`) {
+		t.Fatalf("expected stale local import root to be rewritten, got:\n%s", got)
+	}
+}
+
+func TestGenerateProjectDoesNotRewriteStandardLibraryImportRoot(t *testing.T) {
+	dir := t.TempDir()
+	source := writeProjectSource(t, dir)
+	writeTemplateFile(t, source, "app/admin/provider.go", "package admin\n\nimport \"net/http\"\n\nvar _ = http.MethodGet\n")
+	writeTemplateFile(t, source, "http/local.go", "package http\n")
+
+	err := GenerateProject(dir, ProjectOptions{Name: "demo", ModulePath: "github.com/acme/demo", SourceDir: source})
+	if err != nil {
+		t.Fatalf("GenerateProject returned error: %v", err)
+	}
+
+	providerGo, err := os.ReadFile(filepath.Join(dir, "demo", "app", "admin", "provider.go"))
+	if err != nil {
+		t.Fatalf("ReadFile provider.go returned error: %v", err)
+	}
+	if got := string(providerGo); !contains(got, `"net/http"`) {
+		t.Fatalf("expected standard library import to be preserved, got:\n%s", got)
+	}
+}
+
 func TestGenerateProjectFromAlternateTemplateIdentity(t *testing.T) {
 	dir := t.TempDir()
 	source := writeNamedProjectSource(t, dir, "sdadmin")
@@ -331,6 +371,17 @@ func writeNamedProjectSource(t *testing.T, base string, sourceName string) strin
 		t.Fatalf("Symlink returned error: %v", err)
 	}
 	return dir
+}
+
+func writeTemplateFile(t *testing.T, dir string, path string, content string) {
+	t.Helper()
+	full := filepath.Join(dir, path)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatalf("MkdirAll %s returned error: %v", path, err)
+	}
+	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile %s returned error: %v", path, err)
+	}
 }
 
 func writeMultiCommandProjectSource(t *testing.T, base string) string {

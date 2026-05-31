@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,11 +26,12 @@ type ProjectOptions struct {
 }
 
 type sourceIdentity struct {
-	Kind        templateKind
-	ModulePath  string
-	CommandName string
-	ProjectName string
-	PackageName string
+	Kind              templateKind
+	ModulePath        string
+	ModulePathAliases []string
+	CommandName       string
+	ProjectName       string
+	PackageName       string
 }
 
 type templateKind string
@@ -283,11 +287,16 @@ func inspectGoTemplateSource(dir string) (sourceIdentity, bool, error) {
 	if len(commandNames) == 1 {
 		commandName = commandNames[0]
 	}
+	aliases, err := collectGoImportModuleAliases(dir, modulePath)
+	if err != nil {
+		return sourceIdentity{}, false, err
+	}
 	return sourceIdentity{
-		Kind:        templateKindGo,
-		ModulePath:  modulePath,
-		CommandName: commandName,
-		ProjectName: sourceProjectName(modulePath, commandName),
+		Kind:              templateKindGo,
+		ModulePath:        modulePath,
+		ModulePathAliases: aliases,
+		CommandName:       commandName,
+		ProjectName:       sourceProjectName(modulePath, commandName),
 	}, true, nil
 }
 
@@ -318,6 +327,73 @@ func readGoModulePath(path string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("module path not found in go.mod")
+}
+
+func collectGoImportModuleAliases(dir string, modulePath string) ([]string, error) {
+	aliases := map[string]struct{}{}
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		if rel != "." && entry.IsDir() && shouldSkipProjectPath(rel, true, templateKindGo) {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".go" {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return fmt.Errorf("parse imports %s: %w", path, err)
+		}
+		for _, spec := range file.Imports {
+			importPath, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return fmt.Errorf("parse import path %s: %w", path, err)
+			}
+			alias, ok := goImportModuleAlias(dir, modulePath, importPath)
+			if ok {
+				aliases[alias] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]string, 0, len(aliases))
+	for alias := range aliases {
+		out = append(out, alias)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func goImportModuleAlias(dir string, modulePath string, importPath string) (string, bool) {
+	if modulePath != "" && strings.HasPrefix(importPath, modulePath+"/") {
+		return "", false
+	}
+	root, suffix, ok := strings.Cut(importPath, "/")
+	if !ok || root == "" || suffix == "" || strings.Contains(root, ".") || isStandardImportRoot(root) {
+		return "", false
+	}
+	if info, err := os.Stat(filepath.Join(dir, filepath.FromSlash(suffix))); err == nil && info.IsDir() {
+		return root, true
+	}
+	return "", false
+}
+
+func isStandardImportRoot(root string) bool {
+	switch root {
+	case "archive", "compress", "container", "crypto", "database", "debug", "encoding", "go", "hash", "html", "image", "index", "log", "math", "mime", "net", "os", "path", "runtime", "testing", "text", "unicode":
+		return true
+	default:
+		return false
+	}
 }
 
 func readPackageName(path string) (string, error) {
@@ -476,6 +552,12 @@ func rewriteGoProjectFile(rel string, content []byte, data TemplateData, source 
 		pairs := []string{
 			`"` + source.ModulePath + `/`, `"` + data.ModulePath + `/`,
 			"`" + source.ModulePath + "/", "`" + data.ModulePath + "/",
+		}
+		for _, alias := range source.ModulePathAliases {
+			pairs = append(pairs,
+				`"`+alias+`/`, `"`+data.ModulePath+`/`,
+				"`"+alias+"/", "`"+data.ModulePath+"/",
+			)
 		}
 		if source.CommandName != "" {
 			pairs = append(pairs,
