@@ -405,12 +405,12 @@ func copyProject(src string, dst string, data TemplateData, source sourceIdentit
 			return nil
 		}
 		if entry.IsDir() {
-			if shouldSkipProjectPath(rel, true) {
+			if shouldSkipProjectPath(rel, true, source.Kind) {
 				return filepath.SkipDir
 			}
 			return os.MkdirAll(mappedProjectPath(dst, rel, data, source), 0o755)
 		}
-		if shouldSkipProjectPath(rel, false) {
+		if shouldSkipProjectPath(rel, false, source.Kind) {
 			return nil
 		}
 		return copyProjectFile(path, mappedProjectPath(dst, rel, data, source), rel, data, source, force)
@@ -583,12 +583,17 @@ func shouldRewriteProjectNameInText(rel string) bool {
 	}
 }
 
-func shouldSkipProjectPath(rel string, isDir bool) bool {
+func shouldSkipProjectPath(rel string, isDir bool, kind templateKind) bool {
 	slash := filepath.ToSlash(rel)
 	name := filepath.Base(slash)
 	if isDir {
 		switch name {
-		case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".vite", ".vscode", "bin", "build", "coverage", "dist", "logs", "node_modules", "storage", "tests", "tmp", ".tmp", "vendor":
+		case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".vite", ".vscode", "bin", "coverage", "dist", "logs", "node_modules", "tests", "tmp", ".tmp", "vendor":
+			return true
+		case "build", "storage":
+			if kind == templateKindNode && strings.Contains(slash, "/") {
+				return false
+			}
 			return true
 		}
 	}

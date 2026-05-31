@@ -155,11 +155,23 @@ func TestGenerateProjectFromNodeTemplate(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "admin-web", "src", "main.ts")); err != nil {
 		t.Fatalf("expected frontend source file: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "library", "build", "index.ts")); err != nil {
+		t.Fatalf("expected nested frontend build source directory to be copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "src", "views", "system", "storage", "index.vue")); err != nil {
+		t.Fatalf("expected nested frontend storage source directory to be copied: %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(dir, "admin-web", "node_modules")); !os.IsNotExist(err) {
 		t.Fatalf("node_modules should not be copied, got %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "admin-web", "dist")); !os.IsNotExist(err) {
 		t.Fatalf("dist should not be copied, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "build")); !os.IsNotExist(err) {
+		t.Fatalf("root build should not be copied, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", "storage")); !os.IsNotExist(err) {
+		t.Fatalf("root storage should not be copied, got %v", err)
 	}
 }
 
@@ -353,16 +365,20 @@ func writeNodeProjectSource(t *testing.T, base string) string {
 	t.Helper()
 	dir := filepath.Join(base, "template")
 	files := map[string]string{
-		"package.json":            "{\n  \"name\": \"admin-template\",\n  \"version\": \"0.1.0\",\n  \"scripts\": {\"dev\": \"vite\"}\n}\n",
-		"package-lock.json":       "{\n  \"name\": \"admin-template\",\n  \"packages\": {\"\": {\"name\": \"admin-template\"}}\n}\n",
-		"index.html":              "<title>admin-template</title>\n",
-		"src/main.ts":             "console.log('hello')\n",
-		"node_modules/vite/index": "skip\n",
-		"dist/assets/index.js":    "skip\n",
-		".vite/deps/package.json": "skip\n",
-		"coverage/lcov.info":      "skip\n",
-		".git/config":             "[core]\n",
-		"tmp/generated.txt":       "skip\n",
+		"package.json":                       "{\n  \"name\": \"admin-template\",\n  \"version\": \"0.1.0\",\n  \"scripts\": {\"dev\": \"vite\"}\n}\n",
+		"package-lock.json":                  "{\n  \"name\": \"admin-template\",\n  \"packages\": {\"\": {\"name\": \"admin-template\"}}\n}\n",
+		"index.html":                         "<title>admin-template</title>\n",
+		"src/main.ts":                        "console.log('hello')\n",
+		"library/build/index.ts":             "export const createVitePlugin = () => []\n",
+		"src/views/system/storage/index.vue": "<template><div /></template>\n",
+		"node_modules/vite/index":            "skip\n",
+		"dist/assets/index.js":               "skip\n",
+		"build/cache.txt":                    "skip\n",
+		"storage/runtime.txt":                "skip\n",
+		".vite/deps/package.json":            "skip\n",
+		"coverage/lcov.info":                 "skip\n",
+		".git/config":                        "[core]\n",
+		"tmp/generated.txt":                  "skip\n",
 	}
 	for path, content := range files {
 		full := filepath.Join(dir, path)

@@ -100,6 +100,7 @@ Skip rules:
 - do not copy `.git`, `.gitnexus`, `.cache`, `.claude`, `.codex`, `.idea`, `.vscode`.
 - do not copy `bin`, `build`, `coverage`, `dist`, `logs`, `storage`, `tests`, `tmp`, `.tmp`, `vendor`, `node_modules`.
 - do not copy common frontend cache/build directories such as `.next`, `.nuxt`, `.svelte-kit`, and `.vite`.
+- for Node/frontend templates, nested source directories named `build` or `storage` are preserved, for example `library/build` and `src/views/system/storage`.
 - do not copy `.DS_Store`, `.air.toml`, `AGENTS.md`, `CLAUDE.md`, `tips.md`.
 - do not follow symlinks.
 

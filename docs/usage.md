@@ -99,6 +99,7 @@ Generation behavior:
 - for Node/frontend templates, rewrites `package.json` package name.
 - rewrites project names in Go, YAML, Makefile, and Dockerfile files.
 - skips local runtime/cache directories such as `.git`, `.gitnexus`, `.cache`, `bin`, `dist`, `logs`, `storage`, `tmp`, `vendor`, and `node_modules`.
+- for Node/frontend templates, keeps nested source directories named `build` or `storage`, such as `library/build` and `src/views/system/storage`.
 
 Project names may contain letters, numbers, hyphens, and underscores, and must start with a letter. For a project named `demo-app`, the project directory remains `demo-app`, while the Go command directory becomes `cmd/demoapp`.
 
@@ -225,6 +226,8 @@ Skipped watch directories:
 - `storage`
 - `tmp`
 - `vendor`
+
+For Node/frontend templates, nested source directories named `build` or `storage` are kept. Only root-level runtime/cache directories with those names are skipped.
 
 ## Upgrade CLI
 
