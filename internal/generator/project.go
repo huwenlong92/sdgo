@@ -670,12 +670,7 @@ func shouldSkipProjectPath(rel string, isDir bool, kind templateKind) bool {
 	name := filepath.Base(slash)
 	if isDir {
 		switch name {
-		case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".vite", ".vscode", "bin", "coverage", "dist", "logs", "node_modules", "tests", "tmp", ".tmp", "vendor":
-			return true
-		case "build", "storage":
-			if kind == templateKindNode && strings.Contains(slash, "/") {
-				return false
-			}
+		case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".vite", ".vscode", "node_modules", "vendor":
 			return true
 		}
 	}

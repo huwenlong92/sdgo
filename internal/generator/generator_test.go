@@ -73,6 +73,9 @@ func TestGenerateProjectRewritesStaleLocalImportRoot(t *testing.T) {
 	source := writeProjectSource(t, dir)
 	writeTemplateFile(t, source, "app/admin/provider.go", "package admin\n\nimport \"sdauth/app/infra/capability/storage\"\n\nvar _ = storage.Provider{}\n")
 	writeTemplateFile(t, source, "app/infra/capability/storage/storage.go", "package storage\n\ntype Provider struct{}\n")
+	writeTemplateFile(t, source, "app/crontab/tests/logs/fixture.txt", "copy\n")
+	writeTemplateFile(t, source, "logs/runtime.txt", "copy\n")
+	writeTemplateFile(t, source, "storage/runtime.txt", "copy\n")
 
 	err := GenerateProject(dir, ProjectOptions{Name: "demo", ModulePath: "github.com/acme/demo", SourceDir: source})
 	if err != nil {
@@ -85,6 +88,18 @@ func TestGenerateProjectRewritesStaleLocalImportRoot(t *testing.T) {
 	}
 	if got := string(providerGo); !contains(got, `"github.com/acme/demo/app/infra/capability/storage"`) {
 		t.Fatalf("expected stale local import root to be rewritten, got:\n%s", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "demo", "app", "infra", "capability", "storage", "storage.go")); err != nil {
+		t.Fatalf("expected nested storage source directory to be copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "demo", "app", "crontab", "tests", "logs", "fixture.txt")); err != nil {
+		t.Fatalf("expected nested tests/logs source directory to be copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "demo", "logs", "runtime.txt")); err != nil {
+		t.Fatalf("expected root logs directory to be copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "demo", "storage", "runtime.txt")); err != nil {
+		t.Fatalf("expected root storage directory to be copied: %v", err)
 	}
 }
 
@@ -204,14 +219,19 @@ func TestGenerateProjectFromNodeTemplate(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "admin-web", "node_modules")); !os.IsNotExist(err) {
 		t.Fatalf("node_modules should not be copied, got %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "admin-web", "dist")); !os.IsNotExist(err) {
-		t.Fatalf("dist should not be copied, got %v", err)
+	if _, err := os.Stat(filepath.Join(dir, "admin-web", ".vite")); !os.IsNotExist(err) {
+		t.Fatalf(".vite should not be copied, got %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "admin-web", "build")); !os.IsNotExist(err) {
-		t.Fatalf("root build should not be copied, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "admin-web", "storage")); !os.IsNotExist(err) {
-		t.Fatalf("root storage should not be copied, got %v", err)
+	for _, path := range []string{
+		"dist/assets/index.js",
+		"build/cache.txt",
+		"storage/runtime.txt",
+		"coverage/lcov.info",
+		"tmp/generated.txt",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, "admin-web", path)); err != nil {
+			t.Fatalf("expected frontend template file %s to be copied: %v", path, err)
+		}
 	}
 }
 
