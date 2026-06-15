@@ -19,6 +19,39 @@ type FileState struct {
 
 type Snapshot map[string]FileState
 
+var defaultIgnoredDirs = map[string]struct{}{
+	".cache":        {},
+	".claude":       {},
+	".codex":        {},
+	".git":          {},
+	".gitnexus":     {},
+	".idea":         {},
+	".next":         {},
+	".nuxt":         {},
+	".output":       {},
+	".parcel-cache": {},
+	".svelte-kit":   {},
+	".tmp":          {},
+	".turbo":        {},
+	".vite":         {},
+	".vscode":       {},
+	"bin":           {},
+	"build":         {},
+	"cache":         {},
+	"coverage":      {},
+	"dist":          {},
+	"logs":          {},
+	"node_modules":  {},
+	"out":           {},
+	"run":           {},
+	"runtime":       {},
+	"storage":       {},
+	"target":        {},
+	"temp":          {},
+	"tmp":           {},
+	"vendor":        {},
+}
+
 func NewWatcher(dir string, roots []string) *Watcher {
 	return &Watcher{dir: dir, roots: roots}
 }
@@ -80,12 +113,8 @@ func (s Snapshot) Equal(other Snapshot) bool {
 }
 
 func shouldSkipDir(name string) bool {
-	switch name {
-	case ".git", ".gitnexus", ".cache", ".claude", ".codex", ".idea", ".next", ".nuxt", ".svelte-kit", ".tmp", ".vite", ".vscode", "bin", "build", "coverage", "dist", "logs", "node_modules", "storage", "tmp", "vendor":
-		return true
-	default:
-		return false
-	}
+	_, ok := defaultIgnoredDirs[strings.ToLower(name)]
+	return ok
 }
 
 func shouldWatchFile(path string) bool {

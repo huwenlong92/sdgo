@@ -94,7 +94,7 @@ func printStartup(opt Options, roots []string) {
 	} else {
 		fmt.Fprintln(os.Stderr, "  watch     enabled")
 		fmt.Fprintf(os.Stderr, "  paths     %s\n", strings.Join(roots, ", "))
-		fmt.Fprintln(os.Stderr, "  ignores   .git, node_modules, vendor, dist, build, logs, storage, tmp, *_test.go")
+		fmt.Fprintln(os.Stderr, "  ignores   .git, node_modules, vendor, cache/temp/runtime/output dirs, *_test.go")
 	}
 	fmt.Fprintln(os.Stderr, "+------------------------------------------------------------+")
 	fmt.Fprintln(os.Stderr, "")

@@ -64,6 +64,15 @@ func TestWatcherSkipsGeneratedAndRuntimeDirectories(t *testing.T) {
 		"coverage/lcov.info",
 		".vite/deps/index.js",
 		"node_modules/vite/index.js",
+		"runtime/teval/runs/1/output/manifest.json",
+		"cache/state.json",
+		"temp/probe.json",
+		"run/worker.json",
+		".output/server/manifest.json",
+		".turbo/state.json",
+		".parcel-cache/state.json",
+		"out/export/manifest.json",
+		"target/debug/build.json",
 	} {
 		full := filepath.Join(dir, path)
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
