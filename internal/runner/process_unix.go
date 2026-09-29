@@ -3,6 +3,7 @@
 package runner
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"syscall"
@@ -28,4 +29,12 @@ func killCommand(cmd *exec.Cmd) error {
 		return nil
 	}
 	return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+}
+
+func processTreeStopped(proc *Process) bool {
+	if proc == nil || proc.cmd == nil || proc.cmd.Process == nil {
+		return true
+	}
+	err := syscall.Kill(-proc.cmd.Process.Pid, 0)
+	return errors.Is(err, syscall.ESRCH)
 }

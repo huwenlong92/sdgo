@@ -26,3 +26,15 @@ func killCommand(cmd *exec.Cmd) error {
 	}
 	return cmd.Process.Kill()
 }
+
+func processTreeStopped(proc *Process) bool {
+	if proc == nil {
+		return true
+	}
+	select {
+	case <-proc.done:
+		return true
+	default:
+		return false
+	}
+}

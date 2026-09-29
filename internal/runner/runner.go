@@ -61,8 +61,8 @@ func Run(dir string, opt Options) error {
 		select {
 		case <-signals:
 			return nil
-		case err := <-proc.done:
-			return err
+		case <-proc.done:
+			return proc.err
 		case <-ticker.C:
 			next, err := watcher.Snapshot()
 			if err != nil {
@@ -120,14 +120,15 @@ func waitProcess(proc *Process) error {
 	case <-signals:
 		proc.Stop()
 		return nil
-	case err := <-proc.done:
-		return err
+	case <-proc.done:
+		return proc.err
 	}
 }
 
 type Process struct {
 	cmd  *exec.Cmd
-	done chan error
+	done chan struct{}
+	err  error
 }
 
 func start(dir string, command string) (*Process, error) {
@@ -142,9 +143,10 @@ func start(dir string, command string) (*Process, error) {
 		return nil, fmt.Errorf("start command %q: %w", command, err)
 	}
 
-	proc := &Process{cmd: cmd, done: make(chan error, 1)}
+	proc := &Process{cmd: cmd, done: make(chan struct{})}
 	go func() {
-		proc.done <- cmd.Wait()
+		proc.err = cmd.Wait()
+		close(proc.done)
 	}()
 	return proc, nil
 }
@@ -153,19 +155,38 @@ func (p *Process) Stop() {
 	if p == nil || p.cmd == nil || p.cmd.Process == nil {
 		return
 	}
-	select {
-	case <-p.done:
+	if processTreeStopped(p) {
 		return
-	default:
 	}
 	_ = interruptCommand(p.cmd)
-	select {
-	case <-p.done:
-	case <-time.After(2 * time.Second):
-		_ = killCommand(p.cmd)
+	if waitForProcessTree(p, 2*time.Second) {
+		return
+	}
+	_ = killCommand(p.cmd)
+	_ = waitForProcessTree(p, time.Second)
+}
+
+func waitForProcessTree(p *Process, timeout time.Duration) bool {
+	if processTreeStopped(p) {
+		return true
+	}
+	if timeout <= 0 {
+		return false
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
 		select {
-		case <-p.done:
-		case <-time.After(time.Second):
+		case <-ticker.C:
+			if processTreeStopped(p) {
+				return true
+			}
+		case <-timer.C:
+			return processTreeStopped(p)
 		}
 	}
 }
