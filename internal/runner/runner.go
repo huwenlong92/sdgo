@@ -40,19 +40,19 @@ func Run(dir string, opt Options) error {
 		return err
 	}
 
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, shutdownSignals()...)
+	defer signal.Stop(signals)
+
 	proc, err := start(dir, opt.Command)
 	if err != nil {
 		return err
 	}
+	defer func() { proc.Stop() }()
 
 	if opt.NoWatch {
-		return waitProcess(proc)
+		return waitProcess(proc, signals)
 	}
-	defer proc.Stop()
-
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, shutdownSignals()...)
-	defer signal.Stop(signals)
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -111,14 +111,9 @@ func printRestart(command string) {
 	fmt.Fprintln(os.Stderr)
 }
 
-func waitProcess(proc *Process) error {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, shutdownSignals()...)
-	defer signal.Stop(signals)
-
+func waitProcess(proc *Process, signals <-chan os.Signal) error {
 	select {
 	case <-signals:
-		proc.Stop()
 		return nil
 	case <-proc.done:
 		return proc.err
